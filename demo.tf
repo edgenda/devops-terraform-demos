@@ -23,12 +23,14 @@ resource "aws_subnet" "subnet_a" {
   vpc_id                  = "${aws_vpc.tf_network.id}"
   cidr_block              = "10.0.0.0/24"
   map_public_ip_on_launch = true
+  availability_zone       = "${var.region}a"
   depends_on              = ["aws_internet_gateway.gateway"]
 }
 
 resource "aws_subnet" "subnet_b" {
   vpc_id                  = "${aws_vpc.tf_network.id}"
   cidr_block              = "10.0.1.0/24"
+  availability_zone       = "${var.region}b"
   map_public_ip_on_launch = true
   depends_on              = ["aws_internet_gateway.gateway"]
 }
@@ -42,8 +44,13 @@ resource "aws_route_table" "public_rt" {
   }
 }
 
-resource "aws_route_table_association" "public_route_assoc" {
+resource "aws_route_table_association" "public_route_assoc_a" {
   subnet_id      = "${aws_subnet.subnet_a.id}"
+  route_table_id = "${aws_route_table.public_rt.id}"
+}
+
+resource "aws_route_table_association" "public_route_assoc_b" {
+  subnet_id      = "${aws_subnet.subnet_b.id}"
   route_table_id = "${aws_route_table.public_rt.id}"
 }
 
@@ -106,7 +113,7 @@ resource "aws_instance" "webservers" {
   instance_type = "t2.micro"
   count         = 2
 
-  subnet_id                   = "${aws_subnet.subnet_a.id}"
+  subnet_id                   = "${count.index % 2 == 0 ? aws_subnet.subnet_a.id : aws_subnet.subnet_b.id}"
   associate_public_ip_address = "true"
 
   vpc_security_group_ids = [
@@ -131,8 +138,8 @@ resource "aws_instance" "webservers" {
 resource "aws_elb" "lb" {
   name            = "terraform-demo-elb"
   instances       = ["${aws_instance.webservers.*.id}"]
-  security_groups = ["${aws_security_group.allow_http.id}", "${aws_security_group.allow_https.id}"]
-  subnets         = ["${aws_subnet.subnet_a.id}"]
+  security_groups = ["${aws_security_group.allow_http.id}", "${aws_security_group.allow_https.id}", "${aws_security_group.allow_all_out_ipv4.id}", "${aws_security_group.ensure_ssh_ipv4.id}"]
+  subnets         = ["${aws_subnet.subnet_a.id}", "${aws_subnet.subnet_b.id}"]
 
   listener {
     instance_port     = 80
@@ -148,6 +155,11 @@ resource "aws_elb" "lb" {
     target              = "HTTP:80/"
     interval            = 30
   }
+
+  cross_zone_load_balancing   = true
+  idle_timeout                = 400
+  connection_draining         = true
+  connection_draining_timeout = 400
 }
 
 resource "ansible_host" "default" {
