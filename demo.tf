@@ -49,7 +49,7 @@ resource "aws_route_table_association" "public_route_assoc" {
 
 resource "aws_key_pair" "edgenda_key" {
   key_name   = "ec2_instance_key"
-  public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDB+DbV+bzONPPcIDl9iyMVgd0B553nL4qiDnvYBXft8JCDquyA4Xci8mhKRCh/CXgu/HU0ndB0gwqnS1CCK5vMD56yGq9kN9ZKaCZjpgwb2D2d1+geMWlfTbG3c5+8EOHHrGsIxcunEhutpQrQHq++4RCnBfXiEkbKuzayYLxxU+nCIDbxBteTn9Z47xvHmeh1M/pjD94BzNMiPvazOs5JbP2jTiCpiFpVoBK1wxKPb2VaKj8vKcQ0bztggc+t+LAA8yalh6uSqeGE7Pvw2jmaD/2LO3UMOaDYn3CogKLGFoI7zMUOXBr5oFUvo6s+SyyCOI9QkrDFCIKku8DNCaj+Sg/YqUDoUSixidCVlRdayAhyUpQeTvuORNTIhcSCgZyqJPNg6Ja8w6SeO6Tf2qrbqsjYWNBrFVKHqd8nFg1M2WDQBlLlEgI5xDsmYIn+tKLtTSiU+da/jbr0MNu0EINAoP5jcfte+9BGJGQ4/W0y0Gp2LL5Pj4aNJrSsXRlx1YL1I3P416pHpI7qUuLDnjVhBIZWhTl9g8lDOpZh41W1By9WHs9S5lduHL1CyG36HewbY1hrzcbH+p0pMtvLSFkToIvMVTzMveFm4cvw5fbsNyjRX7umXGg33qkie2fQjgdT7Tt10p49R1YbKyT6k6Tz368BFI2j2qnTWmqf98iJ0w== efog@STRONGBAD10"
+  public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC+oJWsl5iLfdgp9dWsmFNENGwWGdg1/z6ES7Z29EiG0dfeCb9RlY5CaSzKCIS0DB6FIYIGdA6xFWWDMl+UUiXBMeQMOBGmKX5vfBujwgsOO2xMC/Y64Ruv1tI/sVd43I3ejckXWxxqphe4efOV7tVgwN8pI2+X5ECWRoODH13juOS9uI3bNlIHlc+bqLsfrQsOjU68xDkanz5CtjIvEUgsHlUC4rRZu0I34+OKaA4xjwJ54ejowRNKLqItYm9f3FQxnhNXZ3FZ4c45/Aghirev9grPC4T1CfCAqF/xm/cHO51yaR9ries+Z76jNVkQHcEScdqxxEReEMuT3dAWg5d2dGM4E0Pg5SyiSbXC+n6JBnKxxNncxgw1Txe1rLW+2zXm0pucK4uJKhpNUkuqoHnRxC+8P68nVsIMF0PGjob3E1AREfHuPate3fOhBBBrOjpvXByp5qdoXqm15IfRCCv5OwrQxxCwmkQdXkQxqBUu/OzWduqDTP0tHrm3AoNghs+DOI8hq199Lucrcn8Zn9rBSlr3qdcxfHakxqGAy70H49pkQr3yG9agh9CVGQdFHBzp264oj1+c5MWNJ2mjZPQoKyPzM1aBrx/EJlEb6HdJpMHrzU7JFL7fYYLOX+XYHuq0xV73pnBUQIVm/kLUvMHFB/vC2yFm63Emem3IHkU7kQ== efog@STRONGBAD10"
 }
 
 resource "aws_security_group" "ensure_ssh_ipv4" {
@@ -112,14 +112,27 @@ resource "aws_instance" "webservers" {
   vpc_security_group_ids = [
     "${aws_security_group.ensure_ssh_ipv4.id}",
     "${aws_security_group.allow_all_out_ipv4.id}",
+    "${aws_security_group.allow_http.id}",
+    "${aws_security_group.allow_https.id}",
   ]
+
+  provisioner "remote-exec" {
+    connection {
+      user        = "ubuntu"
+      private_key = "${file("~/.ssh/awstfdemo")}"
+    }
+
+    inline = [
+      "sudo apt install -y python",
+    ]
+  }
 }
 
 resource "aws_elb" "lb" {
-  name               = "terraform-demo-elb"
-  instances          = ["${aws_instance.webservers.*.id}"]
-  security_groups    = ["${aws_security_group.allow_http.id}", "${aws_security_group.allow_https.id}"]
-  subnets            = ["${aws_subnet.subnet_a.id}"]
+  name            = "terraform-demo-elb"
+  instances       = ["${aws_instance.webservers.*.id}"]
+  security_groups = ["${aws_security_group.allow_http.id}", "${aws_security_group.allow_https.id}"]
+  subnets         = ["${aws_subnet.subnet_a.id}"]
 
   listener {
     instance_port     = 80
@@ -134,5 +147,15 @@ resource "aws_elb" "lb" {
     timeout             = 3
     target              = "HTTP:80/"
     interval            = 30
+  }
+}
+
+resource "ansible_host" "default" {
+  count              = "${aws_instance.webservers.count}"
+  inventory_hostname = "${aws_instance.webservers.*.id[count.index]}"
+
+  vars {
+    ansible_user = "ubuntu"
+    ansible_host = "${aws_instance.webservers.*.public_ip[count.index]}"
   }
 }
