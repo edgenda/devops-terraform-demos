@@ -10,6 +10,22 @@ provider "aws" {
   region = "${var.region}"
 }
 
+data "aws_ami" "ubuntu" {
+  most_recent = true
+
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-trusty-14.04-amd64-server-*"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+
+  owners = ["099720109477"]
+}
+
 resource "aws_vpc" "tf_network" {
   cidr_block           = "10.0.0.0/16"
   enable_dns_hostnames = true
@@ -108,7 +124,7 @@ resource "aws_security_group" "allow_all_out_ipv4" {
 }
 
 resource "aws_instance" "webservers" {
-  ami           = "${var.ami}"
+  ami           = "${data.aws_ami.ubuntu.id}"
   key_name      = "${aws_key_pair.edgenda_key.key_name}"
   instance_type = "t2.micro"
   count         = 2
