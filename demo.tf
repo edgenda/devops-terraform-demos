@@ -42,14 +42,18 @@ resource "aws_route_table" "public_rt" {
   }
 }
 
-resource "aws_route_table_association" "public_route_assoc" {
+resource "aws_route_table_association" "public_route_assoc_a" {
   subnet_id      = "${aws_subnet.subnet_subnet_a.id}"
   route_table_id = "${aws_route_table.public_rt.id}"
 }
+resource "aws_route_table_association" "public_route_assoc_b" {
+  subnet_id      = "${aws_subnet.subnet_subnet_b.id}"
+  route_table_id = "${aws_route_table.public_rt.id}"
+}
 
-resource "aws_key_pair" "edgenda_key" {
-  key_name   = "ec2_instance_key"
-  public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDB+DbV+bzONPPcIDl9iyMVgd0B553nL4qiDnvYBXft8JCDquyA4Xci8mhKRCh/CXgu/HU0ndB0gwqnS1CCK5vMD56yGq9kN9ZKaCZjpgwb2D2d1+geMWlfTbG3c5+8EOHHrGsIxcunEhutpQrQHq++4RCnBfXiEkbKuzayYLxxU+nCIDbxBteTn9Z47xvHmeh1M/pjD94BzNMiPvazOs5JbP2jTiCpiFpVoBK1wxKPb2VaKj8vKcQ0bztggc+t+LAA8yalh6uSqeGE7Pvw2jmaD/2LO3UMOaDYn3CogKLGFoI7zMUOXBr5oFUvo6s+SyyCOI9QkrDFCIKku8DNCaj+Sg/YqUDoUSixidCVlRdayAhyUpQeTvuORNTIhcSCgZyqJPNg6Ja8w6SeO6Tf2qrbqsjYWNBrFVKHqd8nFg1M2WDQBlLlEgI5xDsmYIn+tKLtTSiU+da/jbr0MNu0EINAoP5jcfte+9BGJGQ4/W0y0Gp2LL5Pj4aNJrSsXRlx1YL1I3P416pHpI7qUuLDnjVhBIZWhTl9g8lDOpZh41W1By9WHs9S5lduHL1CyG36HewbY1hrzcbH+p0pMtvLSFkToIvMVTzMveFm4cvw5fbsNyjRX7umXGg33qkie2fQjgdT7Tt10p49R1YbKyT6k6Tz368BFI2j2qnTWmqf98iJ0w== efog@STRONGBAD10"
+resource "aws_key_pair" "edgenda_key_demo2" {
+  key_name   = "ec2_instance_key_demo2"
+  public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDCxnuSEUXTrKDxC61sqrP8zil1XVR8VIDqw8M/qAQqWT0KIFIPCrm3jY4EoqNpeeiooUsF2yQjttYpG3EFlVEoh9PcoI3gJH9S5fuqCy3tEA8WY868fHHlnz1URufsvUGD9Bj8lISxQdTYVFQaRKqWpQDI5rHBLqVKRkRe3nlem+ZcI/eFyXQ9GrqSS8e0k5d54F5b2xMsWqwoyoJstDTStrlf4TwjWoFudn7S9339DR1ZQoyJr950L83ojCsl57D4nG0htKUAmivY0wSI+RR+vhKkiAtco1qlgqp3ZX+Es5EkuWkOGEz2qwXo4RY3d/aHFk8pRViG9BxE+wanSBAje+LN/1PGzsacOOxmjYcsF3/kgf481WlAZay0FUgEDriBl156ixmOzMaq8D6lV6bUkl1W/s40y5D5IYrDtRIzmdhQJIqGW/Y/Wxzm7fXU+e2wsgr51J0sXW5Yee1ZpuKFBch3r81aaINUyEIIDLvILrSKv6Ot28gnnD/4oDe3bD8IDNS5K5D9wClzpAE/8nUZBfT8P7zq23Awc5yIexfG+ApoP8FcuqU4rsMYNB2wwh4NP7d/Ec5nvHTeRvr90QGEomEEnvzCLQrCAA78+fB7GZyf1zZICD5GzTalgAQBfGD4zfxh3hwPrtE1OQI+OwFMrYQRjxp+m6sXR7K1OEvprQ== efog@STRONGBAD10"
 }
 
 resource "aws_security_group" "default_security_group_ipv4" {
@@ -73,7 +77,7 @@ resource "aws_security_group" "default_security_group_ipv4" {
 
 resource "aws_instance" "micro_vm" {
   ami           = "${var.ami}"
-  key_name      = "${aws_key_pair.edgenda_key.key_name}"
+  key_name      = "${aws_key_pair.edgenda_key_demo2.key_name}"
   instance_type = "t2.micro"
 
   subnet_id                   = "${aws_subnet.subnet_subnet_a.id}"
@@ -82,12 +86,12 @@ resource "aws_instance" "micro_vm" {
     "${aws_security_group.default_security_group_ipv4.id}"]
 }
 
-resource "aws_eip" "ip" {
-  instance                  = "${aws_instance.micro_vm.id}"
-  vpc                       = true
-  associate_with_private_ip = "${aws_instance.micro_vm.private_ip}"
-  depends_on                = ["aws_internet_gateway.gateway"]
-}
+# resource "aws_eip" "ip" {
+#   instance                  = "${aws_instance.micro_vm.id}"
+#   vpc                       = true
+#   associate_with_private_ip = "${aws_instance.micro_vm.private_ip}"
+#   depends_on                = ["aws_internet_gateway.gateway"]
+# }
 
 output "ip" {
   value = "${aws_instance.micro_vm.public_ip}"
