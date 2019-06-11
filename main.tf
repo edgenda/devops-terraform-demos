@@ -1,3 +1,11 @@
+terraform {
+  backend "s3" {
+    bucket = "bncpd-tf-lab3-12015"
+    key    = "bncpdlab3vm12015tfstate"
+    region = "eu-west-1"
+  }
+}
+
 module "lab4" {
     source = "./modules/lab"
     region = "eu-central-1"
