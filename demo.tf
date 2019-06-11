@@ -39,14 +39,14 @@ resource "aws_subnet" "subnet_a" {
   vpc_id                  = "${aws_vpc.tf_network.id}"
   cidr_block              = "10.0.0.0/24"
   map_public_ip_on_launch = true
-  availability_zone       = "${var.region}a"
+  availability_zone       = "${var.region}b"
   depends_on              = ["aws_internet_gateway.gateway"]
 }
 
 resource "aws_subnet" "subnet_b" {
   vpc_id                  = "${aws_vpc.tf_network.id}"
   cidr_block              = "10.0.1.0/24"
-  availability_zone       = "${var.region}b"
+  availability_zone       = "${var.region}c"
   map_public_ip_on_launch = true
   depends_on              = ["aws_internet_gateway.gateway"]
 }
@@ -71,8 +71,8 @@ resource "aws_route_table_association" "public_route_assoc_b" {
 }
 
 resource "aws_key_pair" "edgenda_key" {
-  key_name   = "ec2_instance_key"
-  public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC+oJWsl5iLfdgp9dWsmFNENGwWGdg1/z6ES7Z29EiG0dfeCb9RlY5CaSzKCIS0DB6FIYIGdA6xFWWDMl+UUiXBMeQMOBGmKX5vfBujwgsOO2xMC/Y64Ruv1tI/sVd43I3ejckXWxxqphe4efOV7tVgwN8pI2+X5ECWRoODH13juOS9uI3bNlIHlc+bqLsfrQsOjU68xDkanz5CtjIvEUgsHlUC4rRZu0I34+OKaA4xjwJ54ejowRNKLqItYm9f3FQxnhNXZ3FZ4c45/Aghirev9grPC4T1CfCAqF/xm/cHO51yaR9ries+Z76jNVkQHcEScdqxxEReEMuT3dAWg5d2dGM4E0Pg5SyiSbXC+n6JBnKxxNncxgw1Txe1rLW+2zXm0pucK4uJKhpNUkuqoHnRxC+8P68nVsIMF0PGjob3E1AREfHuPate3fOhBBBrOjpvXByp5qdoXqm15IfRCCv5OwrQxxCwmkQdXkQxqBUu/OzWduqDTP0tHrm3AoNghs+DOI8hq199Lucrcn8Zn9rBSlr3qdcxfHakxqGAy70H49pkQr3yG9agh9CVGQdFHBzp264oj1+c5MWNJ2mjZPQoKyPzM1aBrx/EJlEb6HdJpMHrzU7JFL7fYYLOX+XYHuq0xV73pnBUQIVm/kLUvMHFB/vC2yFm63Emem3IHkU7kQ== efog@STRONGBAD10"
+  key_name   = "ec2_instance_key_12015"
+  public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCold4SfcnZSWyNT3oTZU3inKyUWqUOZYyX0Fpdelkp2nQo1wljW7h9YET0Vt+uzVUeZRZ2qQwGHikOp1+LhlZXBUrTHi1BTrf5d6YpVaColTWer0bef4JvyvGaVKbErq9M0fhnQ9z6eD9rXQBW3dG/EXtMxV3WuNlpzPxADLMc/Aw55I5lOdVxg7IReiLQH82lJLX0q7QUPmjBXDbJ/N5zdyugtEgXQP2cX/y6eoCkfIQfySEdPUqJS3XcZrSsKH2UZoRK9qb11hmG7P86LApwYuq2CDR/fa9Ud/+zIFcs0mrF1olVkaEIBLQsin1U35qiZEkOxzNADwrZkGQaW5lYuEdV5hwjpswCCdPEqShoNb1f4iKy6PzDq6GKbg9cC6lChNm7gEY2EyGe/a1f5fwWPGYsB4p3Md9NhBoPPx/8GLU0m+oesLOo6O0We+ZVHCwDheyT8kAx15KrKB18T4d81xiYvo3CNFQyybbr9qsMEPj5h0OgsUtqDoIuwAVz+NVq6/oCM0nX3OoaRxfRPnVCjX0lnc2VN9nEguBEbaOIxg7KXha1rgEnrxhBu4iMKjPHHigKls8s+rSkNfkAFBnpfXhd9ADPX9v//P9ZuhEhvPvjMYSqfxF6T7RW20YA8sHGPtBVRO8+nomE7yHBlqilTb+3YqEVHMIbU2QxuijUTQ== etiennebrouillard@MacBook-Pro-de-Etienne.local"
 }
 
 resource "aws_security_group" "ensure_ssh_ipv4" {
@@ -142,7 +142,8 @@ resource "aws_instance" "webservers" {
   provisioner "remote-exec" {
     connection {
       user        = "ubuntu"
-      private_key = "${file("~/.ssh/awstfdemo")}"
+      private_key = "${file("~/.ssh/id_rsa_lab")}"
+      host 	  = "${self.public_ip}"
     }
 
     inline = [
@@ -153,7 +154,7 @@ resource "aws_instance" "webservers" {
 
 resource "aws_elb" "lb" {
   name            = "terraform-demo-elb"
-  instances       = ["${aws_instance.webservers.*.id}"]
+  instances       = "${aws_instance.webservers.*.id}"
   security_groups = ["${aws_security_group.allow_http.id}", "${aws_security_group.allow_https.id}", "${aws_security_group.allow_all_out_ipv4.id}", "${aws_security_group.ensure_ssh_ipv4.id}"]
   subnets         = ["${aws_subnet.subnet_a.id}", "${aws_subnet.subnet_b.id}"]
 
@@ -179,11 +180,11 @@ resource "aws_elb" "lb" {
 }
 
 resource "ansible_host" "default" {
-  count              = "${aws_instance.webservers.count}"
-  inventory_hostname = "${aws_instance.webservers.*.id[count.index]}"
+  count              = 2
+  inventory_hostname = "${element(aws_instance.webservers.*.id, count.index)}"
 
-  vars {
+  vars = {
     ansible_user = "ubuntu"
-    ansible_host = "${aws_instance.webservers.*.public_ip[count.index]}"
+    ansible_host = "${element(aws_instance.webservers.*.public_ip, count.index)}"
   }
 }
