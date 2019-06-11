@@ -3,8 +3,11 @@ module "lab4" {
     region = "eu-central-1"
 }
 
-output "public_dns" {
-
-    value = "${module.lab4.public_dns}"
+output "vms_public_dns" {
+    value = "${module.lab4.vms_public_dns}"
 }
+output "elb_public_dns" {
+    value = "${module.lab4.elb_public_dns}"
+}
+
 
