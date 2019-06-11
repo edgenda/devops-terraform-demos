@@ -1,5 +1,5 @@
 module "lab4" {
-    source = "modules/lab"
+    source = "./modules/lab"
     region = "eu-central-1"
 }
 
