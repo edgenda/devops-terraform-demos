@@ -72,7 +72,7 @@ resource "aws_route_table_association" "public_route_assoc_b" {
 
 resource "aws_key_pair" "edgenda_key" {
   key_name   = "ec2_instance_key_12015"
-  public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCold4SfcnZSWyNT3oTZU3inKyUWqUOZYyX0Fpdelkp2nQo1wljW7h9YET0Vt+uzVUeZRZ2qQwGHikOp1+LhlZXBUrTHi1BTrf5d6YpVaColTWer0bef4JvyvGaVKbErq9M0fhnQ9z6eD9rXQBW3dG/EXtMxV3WuNlpzPxADLMc/Aw55I5lOdVxg7IReiLQH82lJLX0q7QUPmjBXDbJ/N5zdyugtEgXQP2cX/y6eoCkfIQfySEdPUqJS3XcZrSsKH2UZoRK9qb11hmG7P86LApwYuq2CDR/fa9Ud/+zIFcs0mrF1olVkaEIBLQsin1U35qiZEkOxzNADwrZkGQaW5lYuEdV5hwjpswCCdPEqShoNb1f4iKy6PzDq6GKbg9cC6lChNm7gEY2EyGe/a1f5fwWPGYsB4p3Md9NhBoPPx/8GLU0m+oesLOo6O0We+ZVHCwDheyT8kAx15KrKB18T4d81xiYvo3CNFQyybbr9qsMEPj5h0OgsUtqDoIuwAVz+NVq6/oCM0nX3OoaRxfRPnVCjX0lnc2VN9nEguBEbaOIxg7KXha1rgEnrxhBu4iMKjPHHigKls8s+rSkNfkAFBnpfXhd9ADPX9v//P9ZuhEhvPvjMYSqfxF6T7RW20YA8sHGPtBVRO8+nomE7yHBlqilTb+3YqEVHMIbU2QxuijUTQ== etiennebrouillard@MacBook-Pro-de-Etienne.local"
+  public_key = "${file("demo_key.pub")}"
 }
 
 resource "aws_security_group" "ensure_ssh_ipv4" {
@@ -142,7 +142,7 @@ resource "aws_instance" "webservers" {
   provisioner "remote-exec" {
     connection {
       user        = "ubuntu"
-      private_key = "${file("~/.ssh/id_rsa_lab")}"
+      private_key = "${file("./demo_key")}"
       host 	  = "${self.public_ip}"
     }
 
@@ -187,4 +187,8 @@ resource "ansible_host" "default" {
     ansible_user = "ubuntu"
     ansible_host = "${element(aws_instance.webservers.*.public_ip, count.index)}"
   }
+}
+
+output "elb_dns" {
+  value = "${aws_elb.lb.dns_name}"
 }
