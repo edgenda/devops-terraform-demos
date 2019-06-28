@@ -6,6 +6,30 @@ variable "ami" {
   default = "ami-0a851426a8a56bf4b"
 }
 
+variable "authorized_key" {
+  type = "map"
+  default = {
+    public = "demo_key.pub"
+    private = "./demo_key"
+  }
+}
+
+variable "instances_count" {
+  default = "2"
+}
+
+variable "instances_type" {
+  default = "t2.micro"
+}
+
+variable "tags" {
+  type = "map"
+  default = {
+    app = "NGINX"
+    env = "dev"
+  }
+}
+
 provider "aws" {
   region = "${var.region}"
 }
@@ -72,7 +96,7 @@ resource "aws_route_table_association" "public_route_assoc_b" {
 
 resource "aws_key_pair" "edgenda_key" {
   key_name   = "ec2_instance_key_12015"
-  public_key = "${file("demo_key.pub")}"
+  public_key = "${file(var.authorized_key.public)}"
 }
 
 resource "aws_security_group" "ensure_ssh_ipv4" {
@@ -126,8 +150,10 @@ resource "aws_security_group" "allow_all_out_ipv4" {
 resource "aws_instance" "webservers" {
   ami           = "${data.aws_ami.ubuntu.id}"
   key_name      = "${aws_key_pair.edgenda_key.key_name}"
-  instance_type = "t2.micro"
-  count         = 2
+  instance_type = "${var.instances_type}"
+  count         = "${var.instances_count}"
+
+  tags = "${var.tags}"
 
   subnet_id                   = "${count.index % 2 == 0 ? aws_subnet.subnet_a.id : aws_subnet.subnet_b.id}"
   associate_public_ip_address = "true"
@@ -142,7 +168,7 @@ resource "aws_instance" "webservers" {
   provisioner "remote-exec" {
     connection {
       user        = "ubuntu"
-      private_key = "${file("./demo_key")}"
+      private_key = "${file(var.authorized_key.private)}"
       host 	  = "${self.public_ip}"
     }
 
@@ -157,6 +183,8 @@ resource "aws_elb" "lb" {
   instances       = "${aws_instance.webservers.*.id}"
   security_groups = ["${aws_security_group.allow_http.id}", "${aws_security_group.allow_https.id}", "${aws_security_group.allow_all_out_ipv4.id}", "${aws_security_group.ensure_ssh_ipv4.id}"]
   subnets         = ["${aws_subnet.subnet_a.id}", "${aws_subnet.subnet_b.id}"]
+
+  tags = "${var.tags}"
 
   listener {
     instance_port     = 80
@@ -180,7 +208,7 @@ resource "aws_elb" "lb" {
 }
 
 resource "ansible_host" "default" {
-  count              = 2
+  count              = "${var.instances_count}"
   inventory_hostname = "${element(aws_instance.webservers.*.id, count.index)}"
 
   vars = {
@@ -191,4 +219,8 @@ resource "ansible_host" "default" {
 
 output "elb_dns" {
   value = "${aws_elb.lb.dns_name}"
+}
+
+output "instances_ip" {
+  value = "${aws_instance.webservers.*.public_ip}"
 }
