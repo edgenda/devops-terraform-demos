@@ -10,22 +10,6 @@ provider "aws" {
   region = "${var.region}"
 }
 
-data "aws_ami" "ubuntu" {
-  most_recent = true
-
-  filter {
-    name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-bionic-18.04-amd64-server-*"]
-  }
-
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
-
-  owners = ["099720109477"]
-}
-
 resource "aws_vpc" "tf_network" {
   cidr_block           = "10.0.0.0/16"
   enable_dns_hostnames = true
@@ -72,7 +56,7 @@ resource "aws_route_table_association" "public_route_assoc_b" {
 
 resource "aws_key_pair" "edgenda_key" {
   key_name   = "ec2_instance_key_12015"
-  public_key = "${file("demo_key.pub")}"
+  public_key = "SOME_KEY_FILE_DATA"
 }
 
 resource "aws_security_group" "ensure_ssh_ipv4" {
@@ -124,12 +108,12 @@ resource "aws_security_group" "allow_all_out_ipv4" {
 }
 
 resource "aws_instance" "webservers" {
-  ami           = "${data.aws_ami.ubuntu.id}"
+  ami           = "${var.ami}"
   key_name      = "${aws_key_pair.edgenda_key.key_name}"
   instance_type = "t2.micro"
   count         = 2
 
-  subnet_id                   = "${count.index % 2 == 0 ? aws_subnet.subnet_a.id : aws_subnet.subnet_b.id}"
+  subnet_id                   = "${aws_subnet.subnet_a.id}"
   associate_public_ip_address = "true"
 
   vpc_security_group_ids = [
@@ -142,7 +126,7 @@ resource "aws_instance" "webservers" {
   provisioner "remote-exec" {
     connection {
       user        = "ubuntu"
-      private_key = "${file("./demo_key")}"
+      private_key = "${"path_to_private_key_file"}"
       host 	  = "${self.public_ip}"
     }
 
@@ -154,7 +138,7 @@ resource "aws_instance" "webservers" {
 
 resource "aws_elb" "lb" {
   name            = "terraform-demo-elb"
-  instances       = "${aws_instance.webservers.*.id}"
+  instances       = "${awsinstances}"
   security_groups = ["${aws_security_group.allow_http.id}", "${aws_security_group.allow_https.id}", "${aws_security_group.allow_all_out_ipv4.id}", "${aws_security_group.ensure_ssh_ipv4.id}"]
   subnets         = ["${aws_subnet.subnet_a.id}", "${aws_subnet.subnet_b.id}"]
 
