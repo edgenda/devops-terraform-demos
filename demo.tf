@@ -172,7 +172,3 @@ resource "ansible_host" "default" {
     ansible_host = "${element(aws_instance.webservers.*.public_ip, count.index)}"
   }
 }
-
-output "elb_dns" {
-  value = "${aws_elb.lb.dns_name}"
-}
